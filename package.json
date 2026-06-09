@@ -1,0 +1,8 @@
+{
+  "name": "vr-digital-twin-workspace",
+  "version": "1.0.0",
+  "description": "Workspace for Industrial VR Digital Twin.",
+  "scripts": {
+    "start": "node backend/server.js"
+  }
+}

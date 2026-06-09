@@ -1,0 +1,39 @@
+version: '3.9'
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_DB: windtwin
+      POSTGRES_USER: windtwin
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  influxdb:
+    image: influxdb:2.7-alpine
+    ports:
+      - '8086:8086'
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      INFLUXDB_INIT_ORG: windtwin
+      INFLUXDB_INIT_BUCKET: telemetry
+      INFLUXDB_INIT_USERNAME: windtwin
+      INFLUXDB_INIT_PASSWORD: password
+      INFLUXDB_INIT_ADMIN_TOKEN: changeme
+    volumes:
+      - influx_data:/var/lib/influxdb2
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  influx_data:
+  redis_data:

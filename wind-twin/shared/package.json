@@ -1,0 +1,7 @@
+{
+  "name": "@wind-twin/shared",
+  "version": "0.1.0",
+  "main": "./types/index.ts",
+  "private": true,
+  "types": "./types/index.ts"
+}

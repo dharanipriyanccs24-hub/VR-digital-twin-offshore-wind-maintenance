@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Offshore VR Digital Twin Control Room</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+  <div class="auth-overlay" id="authOverlay">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <h1>OceanSentinel Access</h1>
+        <p>Only approved users can access the digital twin. Owner approval is required after registration.</p>
+      </div>
+      <div class="auth-forms">
+        <form id="loginForm" class="auth-form active">
+          <h2>Login</h2>
+          <label>Email<input type="email" name="email" required /></label>
+          <label>Password<input type="password" name="password" required /></label>
+          <button type="submit" class="button primary">Sign in</button>
+          <p class="auth-switch">New user? <a href="#" id="showRegister">Register here</a></p>
+        </form>
+        <form id="registerForm" class="auth-form hidden">
+          <h2>Register</h2>
+          <label>Name<input type="text" name="name" required /></label>
+          <label>Email<input type="email" name="email" required /></label>
+          <label>Password<input type="password" name="password" required /></label>
+          <button type="submit" class="button primary">Request Access</button>
+          <p class="auth-switch">Already registered? <a href="#" id="showLogin">Login</a></p>
+        </form>
+      </div>
+      <div class="auth-note">Owner account: owner@oceansentinel.local / OwnerPass123</div>
+    </div>
+  </div>
+  <div id="dashboard" class="dashboard hidden">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="brand-mark"></div>
+        <div>
+          <p class="eyebrow">Offshore Operations</p>
+          <h1>Industrial VR Digital Twin</h1>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="top-chip">VR MODE <span id="vrMode">OFF</span></div>
+        <button class="button secondary" id="toggleVR">TOGGLE VR</button>
+        <div class="coord-panel">COORDS <strong id="hudCoords">51.34°N, 04.87°E</strong></div>
+      </div>
+    </header>
+
+    <div class="layout-grid">
+      <aside class="panel left-panel">
+        <div class="panel-header">
+          <div>
+            <p class="panel-label">Fleet Navigator</p>
+            <h2>8 Turbines</h2>
+          </div>
+          <span class="status-pill online">ONLINE</span>
+        </div>
+
+        <div class="fleet-list" id="fleetList"></div>
+
+        <div class="panel-section">
+          <p class="panel-label">Operations Log</p>
+          <div class="log-feed" id="logFeed"></div>
+        </div>
+      </aside>
+
+      <main class="panel main-panel">
+        <div class="main-header">
+          <div>
+            <p class="panel-label">Selected Turbine</p>
+            <h2 id="selectedTurbine">A-01</h2>
+          </div>
+          <div class="main-status">
+            <span class="status-pill online" id="selectedStatus">ONLINE</span>
+            <span class="health-badge">Health <strong id="healthScore">87.3</strong>/100</span>
+          </div>
+        </div>
+
+        <div class="viewport-card">
+          <div class="viewport-shell" id="viewportShell">
+            <div id="canvasContainer" class="canvas-container"></div>
+            <div class="hotspots-overlay">
+              <button class="callout hotspot" data-target="blade" style="top: 32%; left: 54%;">
+                <span class="hotspot-dot"></span>
+                <span class="hotspot-label">Blade</span>
+              </button>
+              <button class="callout hotspot" data-target="nacelle" style="top: 15%; left: 47%;">
+                <span class="hotspot-dot"></span>
+                <span class="hotspot-label">Nacelle</span>
+              </button>
+              <button class="callout hotspot" data-target="gearbox" style="top: 45%; left: 44%;">
+                <span class="hotspot-dot"></span>
+                <span class="hotspot-label">Gearbox</span>
+              </button>
+              <button class="callout hotspot" data-target="monopile" style="top: 75%; left: 48%;">
+                <span class="hotspot-dot"></span>
+                <span class="hotspot-label">Monopile</span>
+              </button>
+            </div>
+            <div class="hud-panel">
+              <div>Blade integrity <strong id="hudBlade">98%</strong></div>
+              <div>Nacelle temp <strong id="hudTemp">68°C</strong></div>
+              <div>Gearbox load <strong id="hudGear">72%</strong></div>
+              <div>Monopile stress <strong id="hudMonopile">16%</strong></div>
+            </div>
+          </div>
+
+          <div class="view-tabs" id="viewTabs">
+            <button class="tab active" data-view="twin">3D Twin</button>
+            <button class="tab" data-view="thermal">Thermal</button>
+            <button class="tab" data-view="vibration">Vibration</button>
+            <button class="tab" data-view="history">History</button>
+          </div>
+
+          <div class="action-row">
+            <button class="button primary" id="btnMaintenance">Initiate Maintenance</button>
+            <button class="button negative" id="btnEmergency">Emergency Stop</button>
+          </div>
+        </div>
+      </main>
+
+      <aside class="panel right-panel">
+        <div class="panel-header">
+          <div>
+            <p class="panel-label">Live Health Score</p>
+            <h2><span id="healthScoreBig">87.3</span>/100</h2>
+          </div>
+          <span class="trend up">+3.2%</span>
+        </div>
+
+        <div class="metric-grid">
+          <div class="metric-card">
+            <p>Rotor RPM</p>
+            <strong id="metricRotor">9.4k</strong>
+          </div>
+          <div class="metric-card">
+            <p>Wind Gust</p>
+            <strong id="metricWind">7.8 m/s</strong>
+          </div>
+          <div class="metric-card">
+            <p>Power</p>
+            <strong id="metricPower">1.86 MW</strong>
+          </div>
+          <div class="metric-card">
+            <p>Vibration</p>
+            <strong id="metricVibration">0.12 g</strong>
+          </div>
+        </div>
+
+        <div class="wear-card">
+          <p class="panel-label">Component Wear</p>
+          <div class="wear-row"><span>Blade</span><div class="wear-bar"><div id="wearBlade"></div></div></div>
+          <div class="wear-row"><span>Gearbox</span><div class="wear-bar"><div id="wearGear"></div></div></div>
+          <div class="wear-row"><span>Bearings</span><div class="wear-bar"><div id="wearBearing"></div></div></div>
+          <div class="wear-row"><span>Monopile</span><div class="wear-bar"><div id="wearPile"></div></div></div>
+        </div>
+
+        <div class="chart-card chart-panel">
+          <p class="panel-label">24h Power Output</p>
+          <canvas id="powerChart" height="140"></canvas>
+        </div>
+
+        <div class="alerts-card">
+          <p class="panel-label">Active Alerts</p>
+          <div class="alert-feed" id="alertFeed"></div>
+        </div>
+        <div class="owner-card hidden" id="ownerRequests">
+          <p class="panel-label">Pending Approvals</p>
+          <div class="approval-list" id="approvalList"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="detailsModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalTitle">Subsystem Detail</h3>
+        <button class="close-btn" id="closeDetails">×</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="maintenanceModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Maintenance Work Order</h3>
+        <button class="close-btn" id="closeMaintenance">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-subtitle">Pre-work checklist</p>
+        <div class="checklist">
+          <label><input type="checkbox" checked disabled> Lockout Tagout confirmed</label>
+          <label><input type="checkbox" id="checkGearbox"> Gearbox temperature assessed</label>
+          <label><input type="checkbox" id="checkBlade"> Blade integrity mapped</label>
+          <label><input type="checkbox" id="checkCommunications"> Remote link verified</label>
+        </div>
+        <button class="button primary" id="dispatchWork">Dispatch Technician</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

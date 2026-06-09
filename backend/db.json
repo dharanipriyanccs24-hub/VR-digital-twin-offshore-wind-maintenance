@@ -1,0 +1,30 @@
+{
+  "users": [
+    {
+      "id": "owner-1",
+      "email": "owner@oceansentinel.local",
+      "passwordHash": "$2a$10$0q4eplp3XvpGcPV6EDkIPOrRvARkcGNSkseFQoAjl2JeQgn1pfMMO",
+      "name": "Operations Owner",
+      "role": "OWNER",
+      "isActive": 1,
+      "createdAt": "2026-06-09T04:41:06.240Z"
+    }
+  ],
+  "alerts": [
+    {
+      "id": "alert-2",
+      "turbine": "T-07",
+      "level": "critical",
+      "message": "High vibration on gearbox",
+      "createdAt": "2026-06-09T04:41:06.245Z"
+    },
+    {
+      "id": "alert-1",
+      "turbine": "T-03",
+      "level": "warning",
+      "message": "Yaw motor drift detected",
+      "createdAt": "2026-06-09T04:41:06.244Z"
+    }
+  ],
+  "emails": []
+}

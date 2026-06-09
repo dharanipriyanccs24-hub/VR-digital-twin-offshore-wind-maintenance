@@ -1,0 +1,15 @@
+{
+  "name": "vr-digital-twin-backend",
+  "version": "1.0.0",
+  "description": "Static server and simple API for the VR Digital Twin frontend demo.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.18.4",
+    "jsonwebtoken": "^8.5.1",
+    "socket.io": "^4.8.0"
+  }
+}

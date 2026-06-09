@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  ENGINEER
+  OPERATOR
+  VIEWER
+}
+
+enum TurbineStatus {
+  ONLINE
+  WARNING
+  CRITICAL
+  MAINTENANCE
+  OFFLINE
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum WorkOrderStatus {
+  OPEN
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id                 String      @id @default(cuid())
+  email              String      @unique
+  passwordHash       String
+  name               String
+  role               UserRole    @default(OPERATOR)
+  isActive           Boolean     @default(false)
+  approvedById       String?
+  approvedBy         User?       @relation("ApprovedUsers", fields: [approvedById], references: [id])
+  createdAt          DateTime    @default(now())
+  workOrders         WorkOrder[]
+  acknowledgedAlerts Alert[]     @relation("AcknowledgedAlerts")
+}
+
+model Turbine {
+  id           String        @id
+  name         String
+  latitude     Float
+  longitude    Float
+  installDate  DateTime
+  ratedPowerMW Float
+  hubHeightM   Float
+  status       TurbineStatus @default(ONLINE)
+  alerts       Alert[]
+  workOrders   WorkOrder[]
+}
+
+model Alert {
+  id                String         @id @default(cuid())
+  turbineId         String
+  turbine           Turbine        @relation(fields: [turbineId], references: [id])
+  sensor            String
+  severity          AlertSeverity
+  message           String
+  value             Float
+  threshold         Float
+  firedAt           DateTime       @default(now())
+  resolvedAt        DateTime?
+  acknowledgedById  String?
+  acknowledgedBy    User?          @relation("AcknowledgedAlerts", fields: [acknowledgedById], references: [id])
+}
+
+model WorkOrder {
+  id             String          @id @default(cuid())
+  turbineId      String
+  turbine        Turbine         @relation(fields: [turbineId], references: [id])
+  title          String
+  description    String
+  priority       Priority
+  status         WorkOrderStatus @default(OPEN)
+  assignedToId   String?
+  assignedTo     User?           @relation(fields: [assignedToId], references: [id])
+  scheduledFor   DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime        @default(now())
+  checklist      Json
+  estimatedHours Float?
+}
