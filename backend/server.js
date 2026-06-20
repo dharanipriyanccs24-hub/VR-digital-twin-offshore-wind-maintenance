@@ -7,7 +7,12 @@ const bcrypt = require('bcryptjs')
 
 const app = express()
 const server = http.createServer(app)
-const io = new Server(server)
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+})
 const port = process.env.PORT || 3000
 const JWT_SECRET = process.env.JWT_SECRET || 'ocean-sentinel-secret'
 
@@ -27,12 +32,46 @@ const maintenance = [
   { turbine: 'T-05', service: 'Lubrication', date: '2026-05-22', tech: 'D. Lucas', status: 'completed' }
 ]
 
+// Live sensor state — mutated each second
 const sensors = {
   temperature: 12.4,
   windSpeed: 7.8,
   rotorSpeed: 9.2,
   vibration: 0.12,
   power: 1850
+}
+
+// Small random walk helper: clamp value within [min, max]
+function jitter(current, delta, min, max) {
+  const next = current + (Math.random() - 0.5) * 2 * delta
+  return Math.max(min, Math.min(max, next))
+}
+
+// Simulate sensor drift every second and broadcast via Socket.IO
+function startLiveTelemetry() {
+  setInterval(() => {
+    // Update sensors
+    sensors.windSpeed    = +jitter(sensors.windSpeed,    0.3,  2.0,  18.0).toFixed(2)
+    sensors.rotorSpeed   = +jitter(sensors.rotorSpeed,   0.2,  4.0,  15.0).toFixed(2)
+    sensors.temperature  = +jitter(sensors.temperature,  0.4,  5.0,  28.0).toFixed(1)
+    sensors.vibration    = +jitter(sensors.vibration,    0.008, 0.03, 0.6).toFixed(3)
+    sensors.power        = +jitter(sensors.power,        35,  600,  2800).toFixed(0)
+
+    // Drift turbine health slightly
+    turbines.forEach(t => {
+      t.health = Math.max(40, Math.min(100, t.health + (Math.random() - 0.5) * 0.8))
+      // Very rarely toggle maintenance status
+      if (Math.random() < 0.005) {
+        t.status = t.status === 'active' ? 'maintenance' : 'active'
+      }
+    })
+
+    // Broadcast to all connected clients
+    io.emit('telemetry:update', {
+      sensors,
+      turbines: turbines.map(t => ({ id: t.id, health: +t.health.toFixed(1), status: t.status }))
+    })
+  }, 1000)
 }
 
 const db = require('./db')
@@ -71,6 +110,18 @@ if (existingAlerts.length === 0) {
 }
 
 app.use(express.json())
+
+// CORS middleware to support local testing via file:// protocol
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*')
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization')
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200)
+  }
+  next()
+})
+
 app.use(express.static(path.join(__dirname, '../frontend')))
 
 function authenticate(req, res, next) {

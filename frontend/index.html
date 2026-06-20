@@ -81,6 +81,19 @@
           </div>
         </div>
 
+        <div class="fault-details-card hidden" id="faultDetailsCard">
+          <div class="fault-header">
+            <span class="fault-icon">⚠️</span>
+            <h3>CRITICAL FAULT DETECTED</h3>
+          </div>
+          <div class="fault-body">
+            <p><strong>Code:</strong> <span id="faultCode">FLT-704</span></p>
+            <p><strong>Detail:</strong> <span id="faultDesc">Over-torque load on mechanical gearbox bearings. High thermal gradient.</span></p>
+            <p><strong>Timestamp:</strong> <span id="faultTime">N/A</span></p>
+            <p class="fault-action"><strong>Required Action:</strong> Initiate immediate dispatch checklist below. Emergency brake advised.</p>
+          </div>
+        </div>
+
         <div class="viewport-card">
           <div class="viewport-shell" id="viewportShell">
             <div id="canvasContainer" class="canvas-container"></div>
@@ -130,7 +143,7 @@
             <p class="panel-label">Live Health Score</p>
             <h2><span id="healthScoreBig">87.3</span>/100</h2>
           </div>
-          <span class="trend up">+3.2%</span>
+          <span class="trend up" id="healthTrend">+3.2%</span>
         </div>
 
         <div class="metric-grid">
@@ -152,12 +165,46 @@
           </div>
         </div>
 
+        <div class="live-counter-card">
+          <p class="panel-label">Live Operation Counts</p>
+          <div class="counter-grid">
+            <div class="counter-item">
+              <span class="counter-lbl">Total Rotations</span>
+              <strong id="countRevolutions">1,482,904</strong>
+            </div>
+            <div class="counter-item">
+              <span class="counter-lbl">Total Energy (MWh)</span>
+              <strong id="countEnergy">84.2903</strong>
+            </div>
+          </div>
+        </div>
+
         <div class="wear-card">
           <p class="panel-label">Component Wear</p>
           <div class="wear-row"><span>Blade</span><div class="wear-bar"><div id="wearBlade"></div></div></div>
           <div class="wear-row"><span>Gearbox</span><div class="wear-bar"><div id="wearGear"></div></div></div>
           <div class="wear-row"><span>Bearings</span><div class="wear-bar"><div id="wearBearing"></div></div></div>
           <div class="wear-row"><span>Monopile</span><div class="wear-bar"><div id="wearPile"></div></div></div>
+        </div>
+
+        <div class="maintenance-details-card">
+          <p class="panel-label">Service & Maintenance Schedule</p>
+          <div class="maint-info-row">
+            <span>Last Service:</span>
+            <strong id="maintLastService">N/A</strong>
+          </div>
+          <div class="maint-info-row">
+            <span>Next Service Date:</span>
+            <strong id="maintNextService" class="maint-highlight">N/A</strong>
+          </div>
+          <div class="maint-info-row">
+            <span>Assigned Tech:</span>
+            <strong id="maintTech">N/A</strong>
+          </div>
+          <div class="maint-info-row">
+            <span>Task Detail:</span>
+            <strong id="maintDesc">N/A</strong>
+          </div>
         </div>
 
         <div class="chart-card chart-panel">
@@ -201,13 +248,26 @@
           <label><input type="checkbox" id="checkBlade"> Blade integrity mapped</label>
           <label><input type="checkbox" id="checkCommunications"> Remote link verified</label>
         </div>
+        
+        <p class="modal-subtitle" style="margin-top: 18px;">Dispatch Date & Time Schedule</p>
+        <div class="maint-schedule-fields" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+          <div>
+            <label style="font-size: 12px; color: var(--muted); margin-bottom: 6px; display: block;">Select Date</label>
+            <input type="date" id="maintDispatchDate" required style="width: 100%; border-radius: 10px; border: 1px solid rgba(53,183,255,0.3); background: rgba(5,13,23,0.9); color: var(--text); padding: 10px 14px; font-family: inherit;" />
+          </div>
+          <div>
+            <label style="font-size: 12px; color: var(--muted); margin-bottom: 6px; display: block;">Select Time</label>
+            <input type="time" id="maintDispatchTime" required style="width: 100%; border-radius: 10px; border: 1px solid rgba(53,183,255,0.3); background: rgba(5,13,23,0.9); color: var(--text); padding: 10px 14px; font-family: inherit;" />
+          </div>
+        </div>
+        
         <button class="button primary" id="dispatchWork">Dispatch Technician</button>
       </div>
     </div>
   </div>
 
   <div class="toast-container" id="toastContainer"></div>
-  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.socket.io/4.8.0/socket.io.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

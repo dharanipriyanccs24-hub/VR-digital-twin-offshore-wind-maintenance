@@ -41,6 +41,21 @@ const logEntries = [
   '14:28 - Vessel transfer route confirmed.'
 ]
 
+const faultDetails = {
+  'A-01': { code: 'FLT-102', desc: 'Blade pitch actuator calibration error. High asymmetry load.', time: '12 minutes ago' },
+  'A-02': { code: 'FLT-208', desc: 'Nacelle temperature warning. Cooling pump manifold block.', time: '25 minutes ago' },
+  'A-03': { code: 'FLT-304', desc: 'Gearbox high vibration amplitude at 23Hz. Bearing wear threshold exceeded.', time: '4 minutes ago' },
+  'A-04': { code: 'FLT-401', desc: 'Generator stator circuit insulation resistance low.', time: '1 hour ago' },
+  'A-05': { code: 'FLT-509', desc: 'Monopile structural strain sensor anomaly detected.', time: '45 minutes ago' },
+  'A-06': { code: 'FLT-612', desc: 'Yaw drive motor torque limit reached. High wind resistance friction.', time: '8 minutes ago' },
+  'A-07': { code: 'FLT-704', desc: 'Emergency hydraulic brake pressure loss.', time: '2 minutes ago' },
+  'A-08': { code: 'FLT-811', desc: 'Anemometer sensor telemetry communication failure.', time: '30 minutes ago' },
+}
+
+let totalRevolutions = 1482904
+let totalEnergy = 84.2903
+let maintenanceRecords = []
+
 const calloutDetails = {
   blade: {
     title: 'Blade Integrity Map',
@@ -358,10 +373,13 @@ function changeViewMode(view) {
 }
 
 // ===================== API + AUTH =====================
+const API_BASE = (window.location.protocol === 'file:' || window.location.hostname === '') ? 'http://localhost:3000' : '';
+
 function apiFetch(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) }
   if (token) headers.Authorization = `Bearer ${token}`
-  return fetch(path, { ...options, headers })
+  const url = path.startsWith('http') ? path : `${API_BASE}${path}`
+  return fetch(url, { ...options, headers })
 }
 
 function setAuth(user, authToken) {
@@ -399,6 +417,7 @@ function renderApp() {
 }
 
 async function fetchAppState() {
+  fetchMaintenanceRecords()
   renderFleet()
   renderLogFeed()
   renderAlerts()
@@ -423,7 +442,8 @@ async function fetchAppState() {
 async function connectSocket() {
   if (!token || !currentUser) return
   if (socket) socket.disconnect()
-  socket = io({ auth: { token } })
+  const socketUrl = (window.location.protocol === 'file:' || window.location.hostname === '') ? 'http://localhost:3000' : undefined
+  socket = io(socketUrl, { auth: { token } })
   socket.on('connect', () => {
     socket.emit('join:user', { userId: currentUser.id })
   })
@@ -438,6 +458,18 @@ async function connectSocket() {
     if (alerts.length > 10) alerts.pop()
     renderAlertFeed()
     showToast('Personal alert', alert.message)
+  })
+  socket.on('telemetry:update', data => {
+    if (data.sensors) {
+      metrics.wind = data.sensors.windSpeed || metrics.wind
+      metrics.rotor = data.sensors.rotorSpeed || metrics.rotor
+      metrics.vibration = data.sensors.vibration || metrics.vibration
+      metrics.power = data.sensors.power || metrics.power
+      metrics.temperature = data.sensors.temperature || metrics.temperature
+      
+      updateSelectedInfo()
+      updateLiveCounters(data.sensors.rotorSpeed || 0, data.sensors.power || 0)
+    }
   })
 }
 
@@ -553,6 +585,21 @@ function updateSelectedInfo() {
   $('#hudTemp').textContent = `${metrics.temperature.toFixed(0)}°C`
   $('#hudGear').textContent = `${100 - wear.gearbox}%`
   $('#hudMonopile').textContent = `${100 - wear.pile}%`
+
+  const faultCard = $('#faultDetailsCard')
+  if (faultCard) {
+    if (unit.status === 'fault') {
+      faultCard.classList.remove('hidden')
+      const details = faultDetails[unit.id] || { code: 'FLT-999', desc: 'General system fault. Diagnostics recommended.', time: '5 minutes ago' }
+      $('#faultCode').textContent = details.code
+      $('#faultDesc').textContent = details.desc
+      $('#faultTime').textContent = details.time
+    } else {
+      faultCard.classList.add('hidden')
+    }
+  }
+
+  updateMaintenanceDetails()
 }
 
 function renderTrackers() {
@@ -645,8 +692,14 @@ function closeModals() {
 }
 
 function dispatchWorkOrder() {
+  const dispatchDate = $('#maintDispatchDate').value
+  const dispatchTime = $('#maintDispatchTime').value
   closeModals()
-  showToast('Dispatch initiated', 'Technician task order sent to offshore crew.')
+  if (dispatchDate && dispatchTime) {
+    showToast('Dispatch Scheduled', `Work order dispatched for ${selectedTurbine} on ${dispatchDate} at ${dispatchTime}.`)
+  } else {
+    showToast('Dispatch initiated', 'Technician task order sent to offshore crew for immediate deployment.')
+  }
 }
 
 function toggleEmergency() {
@@ -764,6 +817,47 @@ function init() {
     connectSocket()
     fetchAppState()
   }
+}
+
+async function fetchMaintenanceRecords() {
+  try {
+    const response = await apiFetch('/api/maintenance')
+    if (response.ok) {
+      maintenanceRecords = await response.json()
+    }
+  } catch (err) {
+    console.warn("Failed to fetch maintenance from server, using fallback records", err)
+  }
+  updateMaintenanceDetails()
+}
+
+function updateMaintenanceDetails() {
+  if (!document.getElementById('maintLastService')) return
+  const record = maintenanceRecords.find(r => r.turbine === selectedTurbine || r.turbine === `T-${selectedTurbine.split('-')[1]}`)
+  if (record) {
+    $('#maintLastService').textContent = record.date || 'N/A'
+    $('#maintNextService').textContent = record.nextDate || '2026-07-22'
+    $('#maintTech').textContent = record.tech || 'Unassigned'
+    $('#maintDesc').textContent = record.service || 'None'
+  } else {
+    const num = parseInt(selectedTurbine.split('-')[1]) || 1
+    const lastDate = `2026-05-${String(10 + num).padStart(2, '0')}`
+    const nextDate = `2026-07-${String(15 + num).padStart(2, '0')}`
+    $('#maintLastService').textContent = lastDate
+    $('#maintNextService').textContent = nextDate
+    $('#maintTech').textContent = ['A. Silva', 'B. Khan', 'C. Mei', 'D. Lucas'][num % 4]
+    $('#maintDesc').textContent = ['Blade inspection', 'Gearbox lubrication', 'Electrical alignment', 'Vibration scan'][num % 4]
+  }
+}
+
+function updateLiveCounters(rotorSpeed, powerKw) {
+  const rpm = rotorSpeed * 1000
+  totalRevolutions += (rpm / 60)
+  totalEnergy += (powerKw / 3600000)
+  const revsEl = $('#countRevolutions')
+  const energyEl = $('#countEnergy')
+  if (revsEl) revsEl.textContent = Math.round(totalRevolutions).toLocaleString()
+  if (energyEl) energyEl.textContent = totalEnergy.toFixed(4)
 }
 
 document.addEventListener('DOMContentLoaded', init)
