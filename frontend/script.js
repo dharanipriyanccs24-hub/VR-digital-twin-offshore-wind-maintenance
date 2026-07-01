@@ -26,8 +26,9 @@ const wear = {
 }
 
 let selectedTurbine = fleet[0].id
+let previousHealths = {}
 let emergencyActive = false
-let vrEnabled = false
+let realWindEnabled = false
 let currentPowerSeries = Array.from({ length: 24 }, (_, i) => Math.floor(1200 + 600 * Math.sin(i / 3) + Math.random() * 180))
 let token = localStorage.getItem('authToken')
 let currentUser = localStorage.getItem('authUser') ? JSON.parse(localStorage.getItem('authUser')) : null
@@ -299,7 +300,7 @@ function initThree() {
     const w = container.clientWidth || 960
     const h = container.clientHeight || 520
 
-    if (vrEnabled) {
+    if (realWindEnabled) {
       renderer.setScissorTest(true)
       renderer.setViewport(0, 0, w / 2, h)
       renderer.setScissor(0, 0, w / 2, h)
@@ -379,7 +380,12 @@ function apiFetch(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) }
   if (token) headers.Authorization = `Bearer ${token}`
   const url = path.startsWith('http') ? path : `${API_BASE}${path}`
-  return fetch(url, { ...options, headers })
+  return fetch(url, { ...options, headers }).then(res => {
+    if (res.status === 401) {
+      clearAuth()
+    }
+    return res
+  })
 }
 
 function setAuth(user, authToken) {
@@ -418,9 +424,9 @@ function renderApp() {
 
 async function fetchAppState() {
   fetchMaintenanceRecords()
-  renderFleet()
+  fetchTurbines()
+  fetchAlerts()
   renderLogFeed()
-  renderAlerts()
   renderTrackers()
   updateSelectedInfo()
   drawPowerChart(currentPowerSeries)
@@ -469,6 +475,17 @@ async function connectSocket() {
       
       updateSelectedInfo()
       updateLiveCounters(data.sensors.rotorSpeed || 0, data.sensors.power || 0)
+    }
+    if (data.turbines) {
+      data.turbines.forEach(t => {
+        const unit = fleet.find(f => f.id === t.id)
+        if (unit) {
+          unit.health = t.health
+          unit.status = t.status === 'active' ? 'online' : (t.status === 'maintenance' ? 'maint' : t.status)
+        }
+      })
+      renderFleet()
+      updateSelectedInfo()
     }
   })
 }
@@ -524,7 +541,7 @@ function renderApprovalList(users) {
   const approvalList = $('#approvalList')
   approvalList.innerHTML = ''
   if (!users.length) {
-    approvalList.innerHTML = '<div class="alert-item info"><strong>No pending approvals</strong><p>All registration requests have been handled.</p></div>'
+    approvalList.innerHTML = '<div class="top-chip">REAL WIND <span id="realWindMode">OFF</span></div><div class="alert-item info"><strong>No pending approvals</strong><p>All registration requests have been handled.</p></div>'
     return
   }
   users.forEach(user => {
@@ -575,8 +592,8 @@ function updateSelectedInfo() {
   $('#selectedTurbine').textContent = unit.id
   $('#selectedStatus').textContent = unit.status.toUpperCase()
   $('#selectedStatus').className = `status-pill ${unit.status}`
-  $('#healthScore').textContent = metrics.health.toFixed(1)
-  $('#healthScoreBig').textContent = metrics.health.toFixed(1)
+  $('#healthScore').textContent = unit.health.toFixed(1)
+  $('#healthScoreBig').textContent = unit.health.toFixed(1)
   $('#metricRotor').textContent = `${metrics.rotor.toFixed(1)}k`
   $('#metricWind').textContent = `${metrics.wind.toFixed(1)} m/s`
   $('#metricPower').textContent = `${Math.round(metrics.power / 10) / 100} MW`
@@ -585,6 +602,22 @@ function updateSelectedInfo() {
   $('#hudTemp').textContent = `${metrics.temperature.toFixed(0)}°C`
   $('#hudGear').textContent = `${100 - wear.gearbox}%`
   $('#hudMonopile').textContent = `${100 - wear.pile}%`
+
+  const trendEl = $('#healthTrend')
+  if (trendEl) {
+    const prevHealth = previousHealths[selectedTurbine]
+    if (prevHealth !== undefined && prevHealth !== unit.health) {
+      const diffVal = (unit.health - prevHealth).toFixed(1)
+      if (unit.health >= prevHealth) {
+        trendEl.textContent = `+${diffVal}%`
+        trendEl.className = 'trend up'
+      } else {
+        trendEl.textContent = `${diffVal}%`
+        trendEl.className = 'trend down'
+      }
+    }
+    previousHealths[selectedTurbine] = unit.health
+  }
 
   const faultCard = $('#faultDetailsCard')
   if (faultCard) {
@@ -710,10 +743,10 @@ function toggleEmergency() {
   )
 }
 
-function toggleVR() {
-  vrEnabled = !vrEnabled
-  $('#vrMode').textContent = vrEnabled ? 'ON' : 'OFF'
-  showToast('VR mode toggled', `Stereoscopic split-screen ${vrEnabled ? 'active' : 'inactive'}`)
+function toggleRealWind() {
+  realWindEnabled = !realWindEnabled
+  $('#realWindMode').textContent = realWindEnabled ? 'ON' : 'OFF'
+  showToast('Real Wind mode toggled', `Realistic wind model ${realWindEnabled ? 'active' : 'inactive'}`)
 }
 
 function setupTabs() {
@@ -809,7 +842,7 @@ function init() {
   setupPointerParallax()
   $('#btnMaintenance').addEventListener('click', openMaintenance)
   $('#btnEmergency').addEventListener('click', toggleEmergency)
-  $('#toggleVR').addEventListener('click', toggleVR)
+  $('#toggleVR').addEventListener('click', toggleRealWind)
   $('#closeDetails').addEventListener('click', closeModals)
   $('#closeMaintenance').addEventListener('click', closeModals)
   $('#dispatchWork').addEventListener('click', dispatchWorkOrder)
@@ -829,6 +862,38 @@ async function fetchMaintenanceRecords() {
     console.warn("Failed to fetch maintenance from server, using fallback records", err)
   }
   updateMaintenanceDetails()
+}
+
+async function fetchTurbines() {
+  try {
+    const response = await apiFetch('/api/turbines')
+    if (response.ok) {
+      const data = await response.json()
+      data.forEach(t => {
+        const existing = fleet.find(f => f.id === t.id)
+        if (existing) {
+          existing.health = t.health
+          existing.status = t.status === 'active' ? 'online' : (t.status === 'maintenance' ? 'maint' : t.status)
+        }
+      })
+      renderFleet()
+      updateSelectedInfo()
+    }
+  } catch (err) {
+    console.warn("Failed to fetch turbines from server", err)
+  }
+}
+
+async function fetchAlerts() {
+  try {
+    const response = await apiFetch('/api/alerts')
+    if (response.ok) {
+      alerts = await response.json()
+    }
+  } catch (err) {
+    console.warn("Failed to fetch alerts from server", err)
+  }
+  renderAlerts()
 }
 
 function updateMaintenanceDetails() {

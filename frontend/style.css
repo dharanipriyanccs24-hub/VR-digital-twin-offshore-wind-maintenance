@@ -876,3 +876,24 @@ button {
   text-shadow: 0 0 8px rgba(255, 203, 63, 0.2);
 }
 
+/* Trend indicator styling */
+.trend {
+  font-size: 13px;
+  font-weight: bold;
+  padding: 6px 12px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.trend.up {
+  color: var(--accent-green);
+  background: rgba(47, 226, 149, 0.1);
+  border: 1px solid rgba(47, 226, 149, 0.2);
+}
+.trend.down {
+  color: #ff7d6c;
+  background: rgba(255, 125, 108, 0.1);
+  border: 1px solid rgba(255, 125, 108, 0.2);
+}
+

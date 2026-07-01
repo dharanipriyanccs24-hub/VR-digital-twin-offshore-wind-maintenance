@@ -16,9 +16,9 @@ const io = new Server(server, {
 const port = process.env.PORT || 3000
 const JWT_SECRET = process.env.JWT_SECRET || 'ocean-sentinel-secret'
 
-const turbines = Array.from({ length: 12 }, (_, i) => ({
-  id: `T-${String(i + 1).padStart(2, '0')}`,
-  name: `Turbine ${i + 1}`,
+const turbines = Array.from({ length: 8 }, (_, i) => ({
+  id: `A-${String(i + 1).padStart(2, '0')}`,
+  name: `Wind Unit A-${String(i + 1).padStart(2, '0')}`,
   lat: 50 + Math.random() * 2,
   lon: 3 + Math.random() * 3,
   status: Math.random() > 0.12 ? 'active' : 'maintenance',
@@ -26,10 +26,10 @@ const turbines = Array.from({ length: 12 }, (_, i) => ({
 }))
 
 const maintenance = [
-  { turbine: 'T-01', service: 'Blade inspection', date: '2026-07-02', tech: 'A. Silva', status: 'scheduled' },
-  { turbine: 'T-03', service: 'Gearbox check', date: '2026-06-12', tech: 'B. Khan', status: 'overdue' },
-  { turbine: 'T-08', service: 'Electrical', date: '2026-08-01', tech: 'C. Mei', status: 'scheduled' },
-  { turbine: 'T-05', service: 'Lubrication', date: '2026-05-22', tech: 'D. Lucas', status: 'completed' }
+  { turbine: 'A-01', service: 'Blade inspection', date: '2026-07-02', tech: 'A. Silva', status: 'scheduled' },
+  { turbine: 'A-03', service: 'Gearbox check', date: '2026-06-12', tech: 'B. Khan', status: 'overdue' },
+  { turbine: 'A-08', service: 'Electrical', date: '2026-08-01', tech: 'C. Mei', status: 'scheduled' },
+  { turbine: 'A-05', service: 'Lubrication', date: '2026-05-22', tech: 'D. Lucas', status: 'completed' }
 ]
 
 // Live sensor state — mutated each second
@@ -95,14 +95,14 @@ const existingAlerts = db.getAlerts()
 if (existingAlerts.length === 0) {
   db.createAlert({
     id: 'alert-1',
-    turbine: 'T-03',
+    turbine: 'A-03',
     level: 'warning',
     message: 'Yaw motor drift detected',
     createdAt: new Date().toISOString()
   })
   db.createAlert({
     id: 'alert-2',
-    turbine: 'T-07',
+    turbine: 'A-07',
     level: 'critical',
     message: 'High vibration on gearbox',
     createdAt: new Date().toISOString()
@@ -261,4 +261,5 @@ app.get('/api/maintenance', (req, res) => {
 
 server.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`)
+  startLiveTelemetry()
 })

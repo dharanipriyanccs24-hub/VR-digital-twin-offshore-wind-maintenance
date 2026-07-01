@@ -13,14 +13,14 @@
   "alerts": [
     {
       "id": "alert-2",
-      "turbine": "T-07",
+      "turbine": "A-07",
       "level": "critical",
       "message": "High vibration on gearbox",
       "createdAt": "2026-06-09T04:41:06.245Z"
     },
     {
       "id": "alert-1",
-      "turbine": "T-03",
+      "turbine": "A-03",
       "level": "warning",
       "message": "Yaw motor drift detected",
       "createdAt": "2026-06-09T04:41:06.244Z"
